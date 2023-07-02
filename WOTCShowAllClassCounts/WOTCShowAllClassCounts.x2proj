@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Default" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Guid>f8369d53-fa96-48a7-9526-cb18bca0b080</Guid>
+    <Name>WOTCShowAllClassCounts</Name>
+    <Description>Displays how many soldiers of each class you have at the top of the Armory UI.
+
+tags= war of the chosen, Soldier Class, Facility, UI</Description>
+    <SteamPublishID>0</SteamPublishID>
+    <AssemblyName>WOTCShowAllClassCounts</AssemblyName>
+    <RootNamespace>WOTCShowAllClassCounts</RootNamespace>
+    <ProjectGuid>{9315c2ed-5787-44c9-a557-930c617843ee}</ProjectGuid>
+  </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="Config\" />
+    <Folder Include="Src\" />
+    <Folder Include="Src\WOTCShowAllClassCounts\" />
+    <Folder Include="Src\WOTCShowAllClassCounts\Classes\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Config\XComShowAllClassCounts.ini">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="ReadMe.txt" />
+    <Content Include="ModPreview.jpg" />
+    <Content Include="Config\XComEditor.ini" />
+    <Content Include="Config\XComEngine.ini" />
+    <Content Include="Config\XComGame.ini" />
+    <Content Include="Src\WOTCShowAllClassCounts\Classes\X2EventListener_ClassCountsHook.uc">
+      <SubType>Content</SubType>
+    </Content>
+  </ItemGroup>
+  <PropertyGroup>
+    <SolutionRoot>$(MSBuildProjectDirectory)\..\</SolutionRoot>
+    <ScriptsDir>$(SolutionRoot).scripts\</ScriptsDir>
+    <BuildCommonRoot>$(ScriptsDir)X2ModBuildCommon\</BuildCommonRoot>
+  </PropertyGroup>
+  <Import Project="$(BuildCommonRoot)XCOM2.targets" />
+</Project>
