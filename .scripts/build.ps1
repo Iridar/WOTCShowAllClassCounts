@@ -12,8 +12,8 @@ Write-Host "Sourcing $common"
 
 $builder = [BuildProject]::new("WOTCShowAllClassCounts", $srcDirectory, $sdkPath, $gamePath)
 #$builder.SetContentOptionsJsonFilename("ContentOptions.json")
-#$builder.IncludeSrc("$srcDirectory\CustomSrc")
-$builder.IncludeSrc("$srcDirectory\X2WOTCCommunityHighlander\X2WOTCCommunityHighlander\Src")
+$builder.IncludeSrc("C:\Users\Iridar\Documents\Firaxis ModBuddy\X2WOTCCommunityHighlander\X2WOTCCommunityHighlander\Src")
+$builder.IncludeSrc("C:\Users\Iridar\Documents\Firaxis ModBuddy\CustomSrc")
 
 switch ($config)
 {
