@@ -1,11 +1,19 @@
-class X2EventListener_ClassCountsHook extends X2EventListener config(Game);
+class X2EventListener_ClassCountsHook extends X2EventListener config(ShowAllClassCounts);
 
 var config bool DisplayClassName;
 var config bool DisplayClassIcon;
-var config bool	AlwaysShowGTSTrainableClasses;
+var config bool UseUltraCompactMode;
+var config bool AlwaysShowGTSTrainableClasses;
+var config bool ShowAvaliableCounts;
+var config bool ShowRookiesFirst;
+var config bool ShowHeroUnitLast;
 
-var config(ShowAllClassCounts) array<name> ScreensToShowClassCount;
-var config(ShowAllClassCounts) array<name> IgnoreClasses;
+var config int IconSize;
+var config int IconOffset;
+
+var config array<name> ScreensToShowClassCount;
+var config array<name> PriorityClasses;
+var config array<name> IgnoreClasses;
 
 static function array<X2DataTemplate> CreateTemplates()
 {
@@ -18,10 +26,10 @@ static function array<X2DataTemplate> CreateTemplates()
 
 static private function X2EventListenerTemplate CreateClassCountsTemplate()
 {
-	local CHEventListenerTemplate Template;
-	local name ScreenClassName;
-	local class<UIScreen> ScreenClass;
-	local array<name> ValidatedScreenClassNames;
+	local CHEventListenerTemplate	Template;
+	local name						ScreenClassName;
+	local class<UIScreen>			ScreenClass;
+	local array<name>				ValidatedScreenClassNames;
 
 	`CREATE_X2TEMPLATE(class'CHEventListenerTemplate', Template, 'IRI_ClassCountsHook_Listener');
 
@@ -43,42 +51,58 @@ static private function X2EventListenerTemplate CreateClassCountsTemplate()
 
 static private function EventListenerReturn OnUpdateResources(Object EventData, Object EventSource, XComGameState GameState, Name Event, Object CallbackData)
 {
-	local XComGameState_HeadquartersXCom	XComHQ;
-	local XComGameStateHistory				History;
 	local UIAvengerHUD						HUD;
 	local UIScreen							CurrentScreen;
-	local XComGameState_Unit				HQUnitState;
-	local string							TextString;
-	local array<int>						TotalCounts;
-	local array<int>						AvailableCounts;
-	local X2SoldierClassTemplate			SoldierClassTemplate;
-	local StateObjectReference				UnitRef;
-	local int								Index;
 	local UIChooseClass						ChooseSoldierClassScreenCDO;
+	local name								ScreenClassName;
+
+	local XComGameState_HeadquartersXCom	XComHQ;
+	local XComGameStateHistory				History;
+	local XComGameState_Unit				HQUnitState;
+	local StateObjectReference				UnitRef;
+
 	local X2SoldierClassTemplateManager		SoldierClassTemplateManager;
+	local X2SoldierClassTemplate			SoldierClassTemplate;
 	local array<X2SoldierClassTemplate>		GTSSoldierClassTemplates;
 	local array<X2SoldierClassTemplate>		SoldierClassTemplates;
+
 	local array<name>						SoldierClassTemplateNames;
-	local name								ScreenClassName;
-	local int i;
+	local array<int>						TotalCounts;
+	local array<int>						AvailableCounts;
+	local string							TextString;
+	local string							IconString;
+	local int								Index;
+	local int								ItemCount;
+	local int								i;
 
 	CurrentScreen = `SCREENSTACK.GetCurrentScreen();
-	//`LOG("CurrentScreen:" @ CurrentScreen.Class.Name,, 'IRITEST');
 
+	//for screens we want
 	foreach default.ScreensToShowClassCount(ScreenClassName)
 	{
 		if (!CurrentScreen.IsA(ScreenClassName))
 			continue;
 		
+		//check if we can show the class from the GTS
 		ChooseSoldierClassScreenCDO = UIChooseClass(class'XComEngine'.static.GetClassDefaultObject(class'XComGame.UIChooseClass'));
 		if (ChooseSoldierClassScreenCDO == none)
 			return ELR_NoInterrupt;
 
 		GTSSoldierClassTemplates = ChooseSoldierClassScreenCDO.GetClasses();
+		foreach default.IgnoreClasses(ScreenClassName)
+		{
+			for (i = GTSSoldierClassTemplates.Length - 1; i >= 0; i--)
+			{
+				if (GTSSoldierClassTemplates[i].DataName == ScreenClassName)
+				{
+					GTSSoldierClassTemplates.Remove(i, 1);
+					break;
+				}
+			}
+		}
 
 		SoldierClassTemplateManager = class'X2SoldierClassTemplateManager'.static.GetSoldierClassTemplateManager();
 		SoldierClassTemplates = SoldierClassTemplateManager.GetAllSoldierClassTemplates();
-
 		foreach default.IgnoreClasses(ScreenClassName)
 		{
 			for (i = SoldierClassTemplates.Length - 1; i >= 0; i--)
@@ -90,13 +114,18 @@ static private function EventListenerReturn OnUpdateResources(Object EventData, 
 				}
 			}
 		}
+			
 
-		SoldierClassTemplates.Sort(class'UIChooseClass'.static.SortClassesByName);
+		SoldierClassTemplates.Sort(SortClassesByNameAZ);
+		if (default.ShowHeroUnitLast) { SoldierClassTemplates.Sort(SortClassesPriority); }
+		if (default.ShowRookiesFirst) { SoldierClassTemplates.Sort(SortClassesByRookie); }
 
 		foreach SoldierClassTemplates(SoldierClassTemplate)
 		{
 			SoldierClassTemplateNames.AddItem(SoldierClassTemplate.DataName);
 		}
+
+		// ------------------------------------------------
 		
 		XComHQ = `XCOMHQ;
 		History = `XCOMHISTORY;
@@ -112,44 +141,171 @@ static private function EventListenerReturn OnUpdateResources(Object EventData, 
 				if (Index != INDEX_NONE)
 				{
 					TotalCounts[Index]++;
-					if (HQUnitState.CanGoOnMission(false))
-					{
-						AvailableCounts[Index]++;
-					}
+
+					if (default.ShowAvaliableCounts && !HQUnitState.CanGoOnMission(false))
+						continue;
+					
+					AvailableCounts[Index]++;
 				}
 			}
 		}
 
+		//get the Resource HUD
 		HUD = `HQPRES.m_kAvengerHUD;
+
+		//reset the Resource HUD
+		HUD.HideResources();
+		HUD.ClearResources();
+
+		HUD.ResourceContainer.MC.SetNum("TEXT_PADDING", 8);
+
+		//add some right side padding
+		HUD.AddResource("","");
+
+		//Show counts
 		foreach SoldierClassTemplates(SoldierClassTemplate, Index)
 		{
 			if (TotalCounts[Index] > 0 || default.AlwaysShowGTSTrainableClasses && GTSSoldierClassTemplates.Find(SoldierClassTemplate) != INDEX_NONE)
 			{
 				TextString = "";
+				IconString = "";
 
-				if (default.DisplayClassIcon) 
+				//the MAIN total count and the (avaliable count) or just main
+				if (default.ShowAvaliableCounts)
 				{
-					TextString = class'UIUtilities_Text'.static.InjectImage(SoldierClassTemplate.IconImage, 30, 30, -15);
-				}
-
-				TextString @= class'UIUtilities_Text'.static.GetColoredText(string(TotalCounts[Index]), eUIState_Normal);
-
-				TextString @= class'UIUtilities_Text'.static.GetColoredText("(" $ AvailableCounts[Index] $ ")", eUIState_Good);
-
-				if (default.DisplayClassName && SoldierClassTemplate.DisplayName != "")
-				{
-					HUD.AddResource(SoldierClassTemplate.DisplayName, TextString);
+					// [X|A]
+					TextString $= class'UIUtilities_Text'.static.GetColoredText("[", eUIState_Faded);
+					TextString $= class'UIUtilities_Text'.static.GetColoredText(string(TotalCounts[Index]), eUIState_Normal);
+					TextString $= class'UIUtilities_Text'.static.GetColoredText("|", eUIState_Faded);
+					TextString $= class'UIUtilities_Text'.static.GetColoredText(string(AvailableCounts[Index]), eUIState_Good);
+					TextString $= class'UIUtilities_Text'.static.GetColoredText("]", eUIState_Faded);
 				}
 				else
-				{	
-					HUD.AddResource("", TextString);
+				{
+					// [X]
+					TextString $= class'UIUtilities_Text'.static.GetColoredText("[", eUIState_Faded);
+					TextString $= class'UIUtilities_Text'.static.GetColoredText(string(TotalCounts[Index]), eUIState_Normal);
+					TextString $= class'UIUtilities_Text'.static.GetColoredText("]", eUIState_Faded);
+				}
+
+				//centralise the text under the class name !! NOPE !! -- Doesn't work how you think it would
+				//TextString = class'UIUtilities_Text'.static.AlignCenter(TextString);
+
+				// display icon
+				if (default.DisplayClassIcon || default.UseUltraCompactMode) 
+				{
+					IconString = class'UIUtilities_Text'.static.InjectImage(SoldierClassTemplate.IconImage, default.IconSize, default.IconSize, default.IconOffset);
+				}
+
+				//decide on top display
+				if (default.UseUltraCompactMode)
+				{
+					HUD.ResourceContainer.MC.SetNum("TEXT_PADDING", 5);
+					HUD.AddResource(IconString , TextString);
+					ItemCount++;
+				}
+				else if (default.DisplayClassName && SoldierClassTemplate.DisplayName != "")
+				{
+					HUD.AddResource(SoldierClassTemplate.DisplayName, IconString $ TextString);
+				}
+				else
+				{
+					HUD.AddResource("", IconString $ TextString);
 				}
 			}
 		}
+
+		HUD.ResourceContainer.MC.ProcessCommands();
+
+		// UltraCompact sets the Icon to the top row above, so we shift the row up to fit the numbers under without clipping
+		if (default.UseUltraCompactMode)
+		{
+			for (i = 0 ; i < ItemCount ; i++)
+			{
+				HUD.ResourceContainer.MC.ChildSetNum("resourceArray.resource[" $ i $"].title", "_y", 100.0);
+			}
+		}
+
+		//finally show new resource row
 		HUD.ShowResources();
 
+		//reset HUD Padding for the next screens use
+		HUD.ResourceContainer.MC.SetNum("TEXT_PADDING", 20);
+
+		//we found a screen we wanted, break out and stop looking so we don't repeat
 		break;
 	}
-	
+
 	return ELR_NoInterrupt;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+//	SORT OPTIONS
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+// Sorts by alphabetical A-Z
+static private function int SortClassesByNameAZ(X2SoldierClassTemplate ClassA, X2SoldierClassTemplate ClassB)
+{	
+	if (ClassA.DisplayName > ClassB.DisplayName)
+	{
+		return 1;
+	}
+	else if (ClassA.DisplayName < ClassB.DisplayName)
+	{
+		return -1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+// Sorts HeroClasses
+static private function int SortClassesPriority(X2SoldierClassTemplate ClassA, X2SoldierClassTemplate ClassB)
+{	
+	local int ClassAPriority, ClassBPriority;
+
+	//check default hero array
+	if (class'X2SoldierClass_DefaultChampionClasses'.default.ChampionClasses.find(ClassA.DataName) != INDEX_NONE) { ClassAPriority = 2;	}
+	if (class'X2SoldierClass_DefaultChampionClasses'.default.ChampionClasses.find(ClassB.DataName) != INDEX_NONE) { ClassBPriority = 2;	}
+
+	//check mods priority lists
+	if (default.PriorityClasses.find(ClassA.DataName) != INDEX_NONE) { ClassAPriority = 1;	}
+	if (default.PriorityClasses.find(ClassB.DataName) != INDEX_NONE) { ClassBPriority = 1;	}
+
+	if (ClassAPriority > ClassBPriority)
+	{
+		return 1;
+	}
+	else if (ClassAPriority < ClassBPriority)
+	{
+		return -1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+// Sorts Rookie Class
+static private function int SortClassesByRookie(X2SoldierClassTemplate ClassA, X2SoldierClassTemplate ClassB)
+{	
+	local int ClassAPriority, ClassBPriority;
+
+	//check mods priority lists
+	if (ClassA.DataName == 'Rookie' ) { ClassAPriority = 1;	}
+	if (ClassB.DataName == 'Rookie' ) { ClassBPriority = 1;	}
+
+	if (ClassAPriority > ClassBPriority)
+	{
+		return -1;
+	}
+	else if (ClassAPriority < ClassBPriority)
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
 }
