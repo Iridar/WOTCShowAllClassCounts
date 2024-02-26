@@ -1,0 +1,35 @@
+[X2EventListener_ClassCountsHook]
+ClassDelimLeft = "["
+ClassDelimMiddle = " | "
+ClassDelimRight = "]"
+
+[WOTCShowAllClassCounts_MCMScreen]
+ModName = "Show All Class Counts"
+PageTitle = "Show All Class Counts by Iridar"
+
+GroupHeader = "General"
+GroupHeader2 = "Sorting Options"
+
+DisplayClassName_Label = "Display Class Name"
+DisplayClassName_Tip = "If enabled, the mod will display soldier class name."
+
+DisplayClassIcon_Label = "Display Class Icon"
+DisplayClassIcon_Tip = "If enabled, the mod will display soldier class icon."
+
+UseUltraCompactMode_Label = "Ultra Compact Mode"
+UseUltraCompactMode_Tip = "Experimemtal. If enabled, the mod will display soldier class icon and number of available soldiers of each class in two rows. Doesn't look too good, but works if you really need extra space to fit more classes."
+
+AlwaysShowGTSTrainableClasses_Label = "Always Show GTS Trainable Classes"
+AlwaysShowGTSTrainableClasses_Tip = "If enabled, the mod will always display soldier classes that can be trained from Rookies in Guerilla Tactics School, even if you don't have any soldiers of that class."
+
+ShowAvaliableCounts_Label = "Show Available Soldiers"
+ShowAvaliableCounts_Tip = "If enabled, the mod will also display the number of mission-ready soldiers of each class."
+
+ShowRookiesFirst_Label = "Show Rookies First"
+ShowRookiesFirst_Tip = "If enabled, the mod will group Rookies separately at the start of the list."
+
+ShowHeroUnitLast_Label = "Show Hero Units Last"
+ShowHeroUnitLast_Tip = "If enabled, the mod will group Hero units, like Reapers and Skirmishers, separately at the end of the list."
+
+;LabelEnd = "Created by Iridar | www.patreon.com/Iridar"
+;LabelEndTooltip = "Thank you for using my mods, I hope you enjoy! Please consider supporting me at Patreon so I can afford the time to make more awesome mods <3")

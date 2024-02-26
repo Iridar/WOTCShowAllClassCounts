@@ -1,19 +1,17 @@
 class X2EventListener_ClassCountsHook extends X2EventListener config(ShowAllClassCounts);
 
-var config bool DisplayClassName;
-var config bool DisplayClassIcon;
-var config bool UseUltraCompactMode;
-var config bool AlwaysShowGTSTrainableClasses;
-var config bool ShowAvaliableCounts;
-var config bool ShowRookiesFirst;
-var config bool ShowHeroUnitLast;
-
 var config int IconSize;
 var config int IconOffset;
 
 var config array<name> ScreensToShowClassCount;
 var config array<name> PriorityClasses;
 var config array<name> IgnoreClasses;
+
+var localized string ClassDelimLeft;
+var localized string ClassDelimMiddle;
+var localized string ClassDelimRight;
+
+`include(WOTCShowAllClassCounts\Src\ModConfigMenuAPI\MCM_API_CfgHelpers.uci)
 
 static function array<X2DataTemplate> CreateTemplates()
 {
@@ -75,6 +73,12 @@ static private function EventListenerReturn OnUpdateResources(Object EventData, 
 	local int								ItemCount;
 	local int								i;
 
+	local bool ShowAvaliableCounts;
+	local bool AlwaysShowGTSTrainableClasses;
+	local bool DisplayClassIcon;
+	local bool UseUltraCompactMode;
+	local bool DisplayClassName;
+
 	CurrentScreen = `SCREENSTACK.GetCurrentScreen();
 
 	//for screens we want
@@ -117,8 +121,8 @@ static private function EventListenerReturn OnUpdateResources(Object EventData, 
 			
 
 		SoldierClassTemplates.Sort(SortClassesByNameAZ);
-		if (default.ShowHeroUnitLast) { SoldierClassTemplates.Sort(SortClassesPriority); }
-		if (default.ShowRookiesFirst) { SoldierClassTemplates.Sort(SortClassesByRookie); }
+		if (`GETMCMVAR(ShowHeroUnitLast)) { SoldierClassTemplates.Sort(SortClassesPriority); }
+		if (`GETMCMVAR(ShowRookiesFirst)) { SoldierClassTemplates.Sort(SortClassesByRookie); }
 
 		foreach SoldierClassTemplates(SoldierClassTemplate)
 		{
@@ -131,6 +135,7 @@ static private function EventListenerReturn OnUpdateResources(Object EventData, 
 		History = `XCOMHISTORY;
 		TotalCounts.Length = SoldierClassTemplates.Length;
 		AvailableCounts.Length = SoldierClassTemplates.Length;
+		ShowAvaliableCounts = `GETMCMVAR(ShowAvaliableCounts);
 
 		foreach XComHQ.Crew(UnitRef)
 		{
@@ -142,7 +147,7 @@ static private function EventListenerReturn OnUpdateResources(Object EventData, 
 				{
 					TotalCounts[Index]++;
 
-					if (default.ShowAvaliableCounts && !HQUnitState.CanGoOnMission(false))
+					if (ShowAvaliableCounts && !HQUnitState.CanGoOnMission(false))
 						continue;
 					
 					AvailableCounts[Index]++;
@@ -162,49 +167,54 @@ static private function EventListenerReturn OnUpdateResources(Object EventData, 
 		//add some right side padding
 		HUD.AddResource("","");
 
+		AlwaysShowGTSTrainableClasses = `GETMCMVAR(AlwaysShowGTSTrainableClasses);
+		UseUltraCompactMode = `GETMCMVAR(UseUltraCompactMode);
+		DisplayClassIcon = `GETMCMVAR(DisplayClassIcon);
+		DisplayClassName = `GETMCMVAR(DisplayClassName);
+
 		//Show counts
 		foreach SoldierClassTemplates(SoldierClassTemplate, Index)
 		{
-			if (TotalCounts[Index] > 0 || default.AlwaysShowGTSTrainableClasses && GTSSoldierClassTemplates.Find(SoldierClassTemplate) != INDEX_NONE)
+			if (TotalCounts[Index] > 0 || AlwaysShowGTSTrainableClasses && GTSSoldierClassTemplates.Find(SoldierClassTemplate) != INDEX_NONE)
 			{
 				TextString = "";
 				IconString = "";
 
 				//the MAIN total count and the (avaliable count) or just main
-				if (default.ShowAvaliableCounts)
+				if (ShowAvaliableCounts)
 				{
 					// [X|A]
-					TextString $= class'UIUtilities_Text'.static.GetColoredText("[", eUIState_Faded);
+					TextString $= class'UIUtilities_Text'.static.GetColoredText(default.ClassDelimLeft, eUIState_Faded);
 					TextString $= class'UIUtilities_Text'.static.GetColoredText(string(TotalCounts[Index]), eUIState_Normal);
-					TextString $= class'UIUtilities_Text'.static.GetColoredText("|", eUIState_Faded);
+					TextString $= class'UIUtilities_Text'.static.GetColoredText(default.ClassDelimMiddle, eUIState_Faded);
 					TextString $= class'UIUtilities_Text'.static.GetColoredText(string(AvailableCounts[Index]), eUIState_Good);
-					TextString $= class'UIUtilities_Text'.static.GetColoredText("]", eUIState_Faded);
+					TextString $= class'UIUtilities_Text'.static.GetColoredText(default.ClassDelimRight, eUIState_Faded);
 				}
 				else
 				{
 					// [X]
-					TextString $= class'UIUtilities_Text'.static.GetColoredText("[", eUIState_Faded);
+					TextString $= class'UIUtilities_Text'.static.GetColoredText(default.ClassDelimLeft, eUIState_Faded);
 					TextString $= class'UIUtilities_Text'.static.GetColoredText(string(TotalCounts[Index]), eUIState_Normal);
-					TextString $= class'UIUtilities_Text'.static.GetColoredText("]", eUIState_Faded);
+					TextString $= class'UIUtilities_Text'.static.GetColoredText(default.ClassDelimRight, eUIState_Faded);
 				}
 
 				//centralise the text under the class name !! NOPE !! -- Doesn't work how you think it would
 				//TextString = class'UIUtilities_Text'.static.AlignCenter(TextString);
 
 				// display icon
-				if (default.DisplayClassIcon || default.UseUltraCompactMode) 
+				if (DisplayClassIcon || UseUltraCompactMode) 
 				{
 					IconString = class'UIUtilities_Text'.static.InjectImage(SoldierClassTemplate.IconImage, default.IconSize, default.IconSize, default.IconOffset);
 				}
 
 				//decide on top display
-				if (default.UseUltraCompactMode)
+				if (UseUltraCompactMode)
 				{
 					HUD.ResourceContainer.MC.SetNum("TEXT_PADDING", 5);
 					HUD.AddResource(IconString , TextString);
 					ItemCount++;
 				}
-				else if (default.DisplayClassName && SoldierClassTemplate.DisplayName != "")
+				else if (DisplayClassName && SoldierClassTemplate.DisplayName != "")
 				{
 					HUD.AddResource(SoldierClassTemplate.DisplayName, IconString $ TextString);
 				}
@@ -218,7 +228,7 @@ static private function EventListenerReturn OnUpdateResources(Object EventData, 
 		HUD.ResourceContainer.MC.ProcessCommands();
 
 		// UltraCompact sets the Icon to the top row above, so we shift the row up to fit the numbers under without clipping
-		if (default.UseUltraCompactMode)
+		if (UseUltraCompactMode)
 		{
 			for (i = 0 ; i < ItemCount ; i++)
 			{
